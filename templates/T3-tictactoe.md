@@ -10,10 +10,8 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="match_parent"
     android:orientation="vertical" android:gravity="center_horizontal" android:padding="16dp">
-
     <TextView android:id="@+id/scoreTV" android:layout_width="wrap_content"
         android:layout_height="wrap_content" android:textSize="18sp" android:text="You 0 : 0 CPU"/>
-
     <GridLayout android:id="@+id/board" android:layout_width="wrap_content"
         android:layout_height="wrap_content" android:columnCount="3" android:rowCount="3"
         android:layout_marginTop="16dp">
@@ -27,17 +25,15 @@
         <Button android:id="@+id/b7" style="@style/Cell"/>
         <Button android:id="@+id/b8" style="@style/Cell"/>
     </GridLayout>
-
     <TextView android:id="@+id/statusTV" android:layout_width="wrap_content"
         android:layout_height="wrap_content" android:layout_marginTop="16dp"
         android:textSize="18sp" android:text="It's your turn (X)."/>
-
     <Button android:id="@+id/newGameBtn" android:layout_width="wrap_content"
         android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="Start a new game"/>
 </LinearLayout>
 ```
 
-## res/values/styles.xml (create the file if it doesn't exist)
+## res/values/styles.xml
 ```xml
 <resources>
     <style name="Cell">
@@ -48,37 +44,18 @@
     </style>
 </resources>
 ```
-(No time? Skip the style and put the width, height and textSize directly on each Button.)
 
 ## MainActivity.java
 ```java
-package com.example.tictactoe;
-
-import android.content.SharedPreferences;
-import android.graphics.Color;
-import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
-import android.widget.*;
-import androidx.appcompat.app.AppCompatActivity;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-
 public class MainActivity extends AppCompatActivity {
-
     private static final char HUMAN = 'X', CPU = 'O', EMPTY = ' ';
     private static final int[][] LINES = {
-        {0,1,2},{3,4,5},{6,7,8},   // rows
-        {0,3,6},{1,4,7},{2,5,8},   // cols
-        {0,4,8},{2,4,6}            // diagonals
+        {0,1,2},{3,4,5},{6,7,8},{0,3,6},{1,4,7},{2,5,8},{0,4,8},{2,4,6}
     };
-
     private final Button[] cells = new Button[9];
     private char[] board = new char[9];
     private boolean gameOver = false;
     private int humanWins = 0, cpuWins = 0;
-
     private TextView statusTV, scoreTV;
     private final Random rnd = new Random();
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -87,7 +64,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
         statusTV = findViewById(R.id.statusTV);
         scoreTV = findViewById(R.id.scoreTV);
 
@@ -108,9 +84,7 @@ public class MainActivity extends AppCompatActivity {
             gameOver = savedInstanceState.getBoolean("OVER");
             statusTV.setText(savedInstanceState.getString("STATUS"));
             for (int i = 0; i < 9; i++) drawCell(i);
-        } else {
-            newGame();
-        }
+        } else newGame();
         updateScore();
     }
 
@@ -135,20 +109,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void move(int i, char p) { board[i] = p; drawCell(i); }
-
     private void drawCell(int i) {
         cells[i].setText(board[i] == EMPTY ? "" : String.valueOf(board[i]));
         cells[i].setTextColor(board[i] == HUMAN ? Color.RED : Color.rgb(0, 160, 0));
     }
-
     private void setBoardEnabled(boolean e) { for (Button b : cells) b.setEnabled(e); }
 
-    /** 0 = none, 1 = tie, 2 = X wins, 3 = O wins */
+    /** 0 none, 1 tie, 2 X wins, 3 O wins */
     private int winner() {
-        for (int[] l : LINES) {
+        for (int[] l : LINES)
             if (board[l[0]] != EMPTY && board[l[0]] == board[l[1]] && board[l[1]] == board[l[2]])
                 return board[l[0]] == HUMAN ? 2 : 3;
-        }
         for (char c : board) if (c == EMPTY) return 0;
         return 1;
     }
@@ -160,11 +131,12 @@ public class MainActivity extends AppCompatActivity {
         if (w == 1) statusTV.setText("It's a tie!");
         else if (w == 2) { statusTV.setText("You won!"); humanWins++; }
         else { statusTV.setText("Android won!"); cpuWins++; }
-        saveScore(); updateScore();
+        getSharedPreferences("TTT", MODE_PRIVATE).edit().putInt("human", humanWins).putInt("cpu", cpuWins).apply();
+        updateScore();
         return true;
     }
 
-    /** Simple AI: win if possible → block → centre → random */
+    /** win if possible → block → centre → random */
     private int computerMove() {
         for (char p : new char[]{CPU, HUMAN}) {
             for (int i = 0; i < 9; i++) {
@@ -184,24 +156,13 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateScore() { scoreTV.setText("You " + humanWins + " : " + cpuWins + " CPU"); }
 
-    private void saveScore() {
-        getSharedPreferences("TTT", MODE_PRIVATE).edit()
-            .putInt("human", humanWins).putInt("cpu", cpuWins).apply();
-    }
-
-    @Override
-    protected void onSaveInstanceState(Bundle out) {
+    @Override protected void onSaveInstanceState(Bundle out) {
         super.onSaveInstanceState(out);
         out.putCharArray("BOARD", board);
         out.putBoolean("OVER", gameOver);
         out.putString("STATUS", statusTV.getText().toString());
     }
-
     @Override protected void onDestroy() { super.onDestroy(); handler.removeCallbacksAndMessages(null); }
 }
 ```
-
-### Variations
-- **2-player mode:** replace the CPU move with a `char turn` that toggles between `X` and `O` on each click.
-- **Difficulty (Spinner/RadioGroup):** Easy = random only. Hard = the win/block/centre logic.
-- **Create the buttons in code:** loop 9 times with `Button b = new Button(this); grid.addView(b);`
+**2-player mode:** replace the CPU move with a `char turn` that toggles between X and O on each click.

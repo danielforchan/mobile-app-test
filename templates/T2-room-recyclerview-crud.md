@@ -4,28 +4,21 @@
 
 ![Notes](../images/T2-notes.svg)
 
-## Gradle (Module: app)
+## Gradle
 ```kotlin
 implementation("androidx.recyclerview:recyclerview:1.3.2")
 implementation("androidx.room:room-runtime:2.6.1")
 annotationProcessor("androidx.room:room-compiler:2.6.1")
 ```
 
-## Note.java (Entity)
+## Note.java
 ```java
-package com.example.notes;
-
-import androidx.room.Entity;
-import androidx.room.PrimaryKey;
-
 @Entity(tableName = "notes")
 public class Note {
-    @PrimaryKey(autoGenerate = true)
-    public int id;
+    @PrimaryKey(autoGenerate = true) public int id;
     public String title;
     public String content;
     public long createdAt;
-
     public Note(String title, String content, long createdAt) {
         this.title = title; this.content = content; this.createdAt = createdAt;
     }
@@ -34,20 +27,9 @@ public class Note {
 
 ## NoteDao.java
 ```java
-package com.example.notes;
-
-import androidx.lifecycle.LiveData;
-import androidx.room.*;
-import java.util.List;
-
 @Dao
 public interface NoteDao {
-    @Query("SELECT * FROM notes ORDER BY createdAt DESC")
-    LiveData<List<Note>> getAll();
-
-    @Query("SELECT * FROM notes WHERE title LIKE '%' || :q || '%' ORDER BY createdAt DESC")
-    LiveData<List<Note>> search(String q);
-
+    @Query("SELECT * FROM notes ORDER BY createdAt DESC") LiveData<List<Note>> getAll();
     @Insert void insert(Note n);
     @Update void update(Note n);
     @Delete void delete(Note n);
@@ -57,25 +39,16 @@ public interface NoteDao {
 
 ## AppDatabase.java
 ```java
-package com.example.notes;
-
-import android.content.Context;
-import androidx.room.*;
-
 @Database(entities = {Note.class}, version = 1, exportSchema = false)
 public abstract class AppDatabase extends RoomDatabase {
     public abstract NoteDao noteDao();
     private static volatile AppDatabase INSTANCE;
-
     public static AppDatabase getInstance(Context ctx) {
         if (INSTANCE == null) {
             synchronized (AppDatabase.class) {
-                if (INSTANCE == null) {
-                    INSTANCE = Room.databaseBuilder(ctx.getApplicationContext(),
-                            AppDatabase.class, "notes_db")
-                            .fallbackToDestructiveMigration()
-                            .build();
-                }
+                if (INSTANCE == null)
+                    INSTANCE = Room.databaseBuilder(ctx.getApplicationContext(), AppDatabase.class, "notes_db")
+                            .fallbackToDestructiveMigration().build();
             }
         }
         return INSTANCE;
@@ -100,51 +73,23 @@ public abstract class AppDatabase extends RoomDatabase {
 
 ## NoteAdapter.java
 ```java
-package com.example.notes;
-
-import android.text.format.DateFormat;
-import android.view.*;
-import android.widget.TextView;
-import androidx.annotation.NonNull;
-import androidx.recyclerview.widget.RecyclerView;
-import java.util.ArrayList;
-import java.util.List;
-
 public class NoteAdapter extends RecyclerView.Adapter<NoteAdapter.VH> {
-
-    public interface Listener {
-        void onClick(Note n);
-        void onLongClick(Note n);
-    }
-
+    public interface Listener { void onClick(Note n); void onLongClick(Note n); }
     private final List<Note> data = new ArrayList<>();
     private final Listener listener;
-
     public NoteAdapter(Listener l) { listener = l; }
 
-    public void setData(List<Note> list) {
-        data.clear();
-        if (list != null) data.addAll(list);
-        notifyDataSetChanged();
-    }
+    public void setData(List<Note> list) { data.clear(); if (list != null) data.addAll(list); notifyDataSetChanged(); }
 
     static class VH extends RecyclerView.ViewHolder {
         TextView title, content, date;
-        VH(View v) {
-            super(v);
-            title = v.findViewById(R.id.titleTV);
-            content = v.findViewById(R.id.contentTV);
-            date = v.findViewById(R.id.dateTV);
-        }
+        VH(View v) { super(v);
+            title = v.findViewById(R.id.titleTV); content = v.findViewById(R.id.contentTV); date = v.findViewById(R.id.dateTV); }
     }
-
-    @NonNull @Override
-    public VH onCreateViewHolder(@NonNull ViewGroup p, int t) {
+    @NonNull @Override public VH onCreateViewHolder(@NonNull ViewGroup p, int t) {
         return new VH(LayoutInflater.from(p.getContext()).inflate(R.layout.item_note, p, false));
     }
-
-    @Override
-    public void onBindViewHolder(@NonNull VH h, int pos) {
+    @Override public void onBindViewHolder(@NonNull VH h, int pos) {
         Note n = data.get(pos);
         h.title.setText(n.title);
         h.content.setText(n.content);
@@ -152,7 +97,6 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteAdapter.VH> {
         h.itemView.setOnClickListener(v -> listener.onClick(n));
         h.itemView.setOnLongClickListener(v -> { listener.onLongClick(n); return true; });
     }
-
     @Override public int getItemCount() { return data.size(); }
 }
 ```
@@ -163,12 +107,10 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteAdapter.VH> {
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="match_parent"
     android:orientation="vertical" android:padding="16dp">
-
     <EditText android:id="@+id/titleET" android:layout_width="match_parent"
         android:layout_height="wrap_content" android:hint="Title"/>
     <EditText android:id="@+id/contentET" android:layout_width="match_parent"
         android:layout_height="wrap_content" android:hint="Content"/>
-
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal">
         <Button android:id="@+id/addBtn" android:layout_width="0dp" android:layout_weight="1"
@@ -176,10 +118,8 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteAdapter.VH> {
         <Button android:id="@+id/clearAllBtn" android:layout_width="0dp" android:layout_weight="1"
             android:layout_height="wrap_content" android:layout_marginStart="8dp" android:text="Delete All"/>
     </LinearLayout>
-
     <TextView android:id="@+id/countTV" android:layout_width="wrap_content"
         android:layout_height="wrap_content" android:layout_marginTop="8dp"/>
-
     <androidx.recyclerview.widget.RecyclerView android:id="@+id/rv"
         android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"/>
 </LinearLayout>
@@ -187,18 +127,7 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteAdapter.VH> {
 
 ## MainActivity.java
 ```java
-package com.example.notes;
-
-import android.os.Bundle;
-import android.widget.*;
-import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.recyclerview.widget.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
 public class MainActivity extends AppCompatActivity {
-
     private NoteDao dao;
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private EditText titleET, contentET;
@@ -207,39 +136,32 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
         titleET = findViewById(R.id.titleET);
         contentET = findViewById(R.id.contentET);
         TextView countTV = findViewById(R.id.countTV);
-
         dao = AppDatabase.getInstance(this).noteDao();
 
         NoteAdapter adapter = new NoteAdapter(new NoteAdapter.Listener() {
             @Override public void onClick(Note n) { showEditDialog(n); }
             @Override public void onLongClick(Note n) { confirmDelete(n); }
         });
-
         RecyclerView rv = findViewById(R.id.rv);
         rv.setLayoutManager(new LinearLayoutManager(this));
         rv.addItemDecoration(new DividerItemDecoration(this, DividerItemDecoration.VERTICAL));
         rv.setAdapter(adapter);
 
-        // LiveData → UI auto-refreshes after every insert/update/delete
-        dao.getAll().observe(this, notes -> {
+        dao.getAll().observe(this, notes -> {            // auto-refresh
             adapter.setData(notes);
             countTV.setText("Total: " + notes.size());
         });
 
         findViewById(R.id.addBtn).setOnClickListener(v -> {
             String t = titleET.getText().toString().trim();
-            String c = contentET.getText().toString().trim();
             if (t.isEmpty()) { titleET.setError("Required"); return; }
-            Note n = new Note(t, c, System.currentTimeMillis());
+            Note n = new Note(t, contentET.getText().toString().trim(), System.currentTimeMillis());
             io.execute(() -> dao.insert(n));
             titleET.setText(""); contentET.setText("");
-            Toast.makeText(this, "Added", Toast.LENGTH_SHORT).show();
         });
-
         findViewById(R.id.clearAllBtn).setOnClickListener(v ->
             new AlertDialog.Builder(this).setTitle("Delete all?")
                 .setPositiveButton("Yes", (d, w) -> io.execute(() -> dao.deleteAll()))
@@ -247,32 +169,19 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void confirmDelete(Note n) {
-        new AlertDialog.Builder(this)
-            .setTitle("Delete \"" + n.title + "\"?")
+        new AlertDialog.Builder(this).setTitle("Delete \"" + n.title + "\"?")
             .setPositiveButton("Delete", (d, w) -> io.execute(() -> dao.delete(n)))
-            .setNegativeButton("Cancel", null)
-            .show();
+            .setNegativeButton("Cancel", null).show();
     }
 
     private void showEditDialog(Note n) {
         EditText et = new EditText(this);
         et.setText(n.content);
-        new AlertDialog.Builder(this)
-            .setTitle("Edit " + n.title)
-            .setView(et)
-            .setPositiveButton("Save", (d, w) -> {
-                n.content = et.getText().toString();
-                io.execute(() -> dao.update(n));
-            })
-            .setNegativeButton("Cancel", null)
-            .show();
+        new AlertDialog.Builder(this).setTitle("Edit " + n.title).setView(et)
+            .setPositiveButton("Save", (d, w) -> { n.content = et.getText().toString(); io.execute(() -> dao.update(n)); })
+            .setNegativeButton("Cancel", null).show();
     }
 
     @Override protected void onDestroy() { super.onDestroy(); io.shutdown(); }
 }
 ```
-
-### Variations
-- **Detail screen instead of a dialog:** pass `n.id` via Intent. Add `@Query("SELECT * FROM notes WHERE id = :id") LiveData<Note> getById(int id);`
-- **Search box:** add a `TextWatcher` on an EditText and observe `dao.search(q)`.
-- **No Room required?** Use an `ArrayList` and save it as a JSON string in SharedPreferences (see T5-D).

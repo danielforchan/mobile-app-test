@@ -1,173 +1,142 @@
 # 08 · Storage: SharedPreferences, Files, Raw, Room
 
-[⬅ Index](../README.md)
+[⬅ Index](../README.md) · Full exam-style example: [T7 Wellness Tracker](../templates/T7-wellness-tracker-past-paper.md)
 
 | Need | Use |
 |---|---|
-| Small key-value (settings, last input, high score, **count**) | **SharedPreferences** |
-| Text/blob file private to the app | **Internal file** `openFileOutput` |
-| Static bundled read-only data | **res/raw** |
-| Structured list of records | **Room (SQLite)** |
+| Small key-value data (nickname, goal, high score, count) | **SharedPreferences** |
+| Private text file | `openFileOutput` / `openFileInput` |
+| Read-only bundled data | `res/raw` |
+| A list of records | **Room** |
 
 ---
 ## SharedPreferences
 ```java
 // WRITE
-SharedPreferences pref = getSharedPreferences("BMI", MODE_PRIVATE);
+SharedPreferences pref = getSharedPreferences("app_prefs", MODE_PRIVATE);
 pref.edit()
-    .putString("height", h)
-    .putInt("highScore", 120)
+    .putString("nickname", "Daniel")
+    .putInt("dailyStepGoal", 10000)
     .putBoolean("dark", true)
-    .apply();          // async. commit() = sync, returns boolean
+    .apply();
 
 // READ (always give a default)
-SharedPreferences pref = getSharedPreferences("BMI", MODE_PRIVATE);
-heightET.setText(pref.getString("height", ""));
-int best = pref.getInt("highScore", 0);
+String nick = pref.getString("nickname", "Guest");
+int goal = pref.getInt("dailyStepGoal", 8000);
 
-// DELETE
-pref.edit().remove("highScore").apply();
-pref.edit().clear().apply();
+// DELETE / RESET TO DEFAULT
+pref.edit().remove("nickname").apply();
+pref.edit().clear().apply();          // every key goes back to its default value on the next read
 ```
-Single-activity file: `getPreferences(MODE_PRIVATE)`.
-Typical places: **save in `onPause()`**, **load in `onCreate()`/`onResume()`**.
-File location: `/data/data/<pkg>/shared_prefs/BMI.xml` (View → Tool Windows → **Device Explorer**).
+Load in `onCreate()` / **`onResume()`** (so changes made in other screens show up), save in `onPause()` or on button click.
 
-### High-score example
+### Helper class (avoids typos in keys)
 ```java
-private void checkHighScore(int score) {
-    SharedPreferences p = getSharedPreferences("GAME", MODE_PRIVATE);
-    int best = p.getInt("best", 0);
-    if (score > best) {
-        p.edit().putInt("best", score).apply();
-        bestTV.setText("Best: " + score);
-    }
+public class Prefs {
+    public static final String FILE = "app_prefs";
+    public static final String KEY_NICKNAME = "nickname";
+    public static final String KEY_GOAL = "dailyStepGoal";
+    public static SharedPreferences get(Context c) { return c.getSharedPreferences(FILE, Context.MODE_PRIVATE); }
+    public static String nickname(Context c) { return get(c).getString(KEY_NICKNAME, "Guest"); }
+    public static int goal(Context c) { return get(c).getInt(KEY_GOAL, 8000); }
 }
 ```
 
-### Settings screen with PreferenceFragmentCompat
-Dep: `implementation("androidx.preference:preference:1.2.1")`
-
-`res/xml/settings.xml`
+### PreferenceFragmentCompat settings screen (optional)
+Dependency: `implementation("androidx.preference:preference:1.2.1")`
 ```xml
+<!-- res/xml/settings.xml -->
 <PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
-    <EditTextPreference app:key="username" app:title="Username" app:useSimpleSummaryProvider="true"/>
-    <SwitchPreferenceCompat app:key="send_report" app:title="Send crash report"/>
-    <ListPreference app:key="sync_freq" app:title="Sync frequency"
-        app:entries="@array/freq_names" app:entryValues="@array/freq_values"
-        app:defaultValue="60" app:useSimpleSummaryProvider="true"/>
+    <EditTextPreference app:key="nickname" app:title="Nickname" app:useSimpleSummaryProvider="true"/>
+    <SwitchPreferenceCompat app:key="notify" app:title="Notifications"/>
 </PreferenceScreen>
 ```
 ```java
 public class SettingsFragment extends PreferenceFragmentCompat {
-    @Override public void onCreatePreferences(Bundle b, String rootKey) {
-        setPreferencesFromResource(R.xml.settings, rootKey);
-    }
+    @Override public void onCreatePreferences(Bundle b, String rootKey) { setPreferencesFromResource(R.xml.settings, rootKey); }
 }
-// SettingsActivity.onCreate:
-getSupportFragmentManager().beginTransaction()
-    .replace(android.R.id.content, new SettingsFragment()).commit();
-
-// Read these values anywhere (default prefs file):
-SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this); // androidx.preference
-String user = sp.getString("username", "");
-boolean report = sp.getBoolean("send_report", false);
+// Activity: getSupportFragmentManager().beginTransaction().replace(android.R.id.content, new SettingsFragment()).commit();
+// read: PreferenceManager.getDefaultSharedPreferences(this).getString("nickname", "Guest");
 ```
+⚠️ `EditTextPreference` always stores a **String**. For an int goal, use your own Settings Activity with `putInt` (as in T7), or parse the string.
 
 ---
-## Internal file: write / read
+## Internal file
 ```java
-// WRITE (MODE_APPEND to add)
-try (FileOutputStream fOut = openFileOutput("textfile.txt", MODE_PRIVATE);
+try (FileOutputStream fOut = openFileOutput("textfile.txt", MODE_PRIVATE);   // MODE_APPEND to add
      OutputStreamWriter osw = new OutputStreamWriter(fOut, StandardCharsets.UTF_8)) {
     osw.write(inputET.getText().toString());
-    Toast.makeText(this, "Saved", Toast.LENGTH_SHORT).show();
 } catch (IOException e) { e.printStackTrace(); }
 
-// READ
 StringBuilder sb = new StringBuilder();
-try (FileInputStream fIn = openFileInput("textfile.txt");
-     BufferedReader reader = new BufferedReader(new InputStreamReader(fIn, StandardCharsets.UTF_8))) {
+try (BufferedReader r = new BufferedReader(new InputStreamReader(openFileInput("textfile.txt"), StandardCharsets.UTF_8))) {
     String line;
-    while ((line = reader.readLine()) != null) sb.append(line).append('\n');
-} catch (FileNotFoundException e) {
-    Toast.makeText(this, "No file yet", Toast.LENGTH_SHORT).show();
+    while ((line = r.readLine()) != null) sb.append(line).append('\n');
 } catch (IOException e) { e.printStackTrace(); }
-outputTV.setText(sb.toString());
 ```
-Path: `/data/data/<pkg>/files/textfile.txt`. Other dirs: `getFilesDir()`, `getExternalFilesDir(null)`. Delete with `deleteFile("textfile.txt");`
-
-## Raw resource (read-only): `res/raw/mydata.txt`
+## Raw resource
 ```java
-try (InputStream is = getResources().openRawResource(R.raw.mydata);
-     BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
-    String line; StringBuilder sb = new StringBuilder();
-    while ((line = br.readLine()) != null) sb.append(line).append('\n');
-    contentTV.setText(sb.toString());
+try (BufferedReader br = new BufferedReader(new InputStreamReader(getResources().openRawResource(R.raw.mydata)))) {
+    String line;
+    while ((line = br.readLine()) != null) { /* ... */ }
 } catch (IOException e) { e.printStackTrace(); }
 ```
-Resource file names may contain only lowercase letters, digits and `_`.
 
 ---
 ## Room (Java)
-Deps (sheet 01): `room-runtime` + `annotationProcessor room-compiler`.
+Dependencies (sheet 01): `room-runtime` + `annotationProcessor room-compiler`.
 
 ### Entity
 ```java
-@Entity(tableName = "colors")
-public class ColorItem {          // don't name it Color (clashes with android.graphics.Color)
+@Entity(tableName = "records")
+public class Record {
     @PrimaryKey(autoGenerate = true)
     public int id;
-
-    @ColumnInfo(name = "hex_color")
-    public String hex;
-
-    public String name;
-
-    public ColorItem(String hex, String name) { this.hex = hex; this.name = name; }
+    @ColumnInfo(name = "record_date")
+    public String date;
+    public int steps;
+    public Record(String date, int steps) { this.date = date; this.steps = steps; }
 }
 ```
-With public fields you don't need getters/setters. If the fields are private, Room needs both getters **and** setters.
+To allow only one row per date, make the date the key instead: `@PrimaryKey @NonNull public String date;` (see T7).
 
 ### DAO
 ```java
 @Dao
-public interface ColorDao {
-    @Query("SELECT * FROM colors ORDER BY id DESC")
-    List<ColorItem> getAll();
+public interface RecordDao {
+    @Query("SELECT * FROM records ORDER BY record_date DESC")
+    List<Record> getAll();
 
-    @Query("SELECT * FROM colors ORDER BY id DESC")
-    LiveData<List<ColorItem>> getAllLive();       // auto-updates UI
+    @Query("SELECT * FROM records ORDER BY record_date DESC")
+    LiveData<List<Record>> getAllLive();          // auto-updates the UI
 
-    @Query("SELECT * FROM colors WHERE name = :name LIMIT 1")
-    ColorItem findByName(String name);
+    @Query("SELECT * FROM records WHERE record_date = :d LIMIT 1")
+    Record findByDate(String d);
 
-    @Query("SELECT COUNT(*) FROM colors")
-    int count();
+    @Query("SELECT COUNT(*) FROM records WHERE record_date BETWEEN :s AND :e AND steps >= :goal")
+    int countReached(String s, String e, int goal);
 
-    @Insert  void insert(ColorItem... colors);
-    @Update  void update(ColorItem color);
-    @Delete  void delete(ColorItem color);
+    @Query("SELECT SUM(steps) FROM records WHERE record_date BETWEEN :s AND :e")
+    int sumSteps(String s, String e);
 
-    @Query("DELETE FROM colors")
-    void deleteAll();
+    @Insert(onConflict = OnConflictStrategy.REPLACE) void insert(Record r);
+    @Update void update(Record r);
+    @Delete void delete(Record r);
+    @Query("DELETE FROM records") void deleteAll();
 }
 ```
 
 ### Database (singleton)
 ```java
-@Database(entities = {ColorItem.class}, version = 1, exportSchema = false)
-public abstract class ColorDatabase extends RoomDatabase {
-    public abstract ColorDao colorDao();
-
-    private static volatile ColorDatabase INSTANCE;
-
-    public static ColorDatabase getInstance(Context context) {
+@Database(entities = {Record.class}, version = 1, exportSchema = false)
+public abstract class AppDatabase extends RoomDatabase {
+    public abstract RecordDao recordDao();
+    private static volatile AppDatabase INSTANCE;
+    public static AppDatabase getInstance(Context context) {
         if (INSTANCE == null) {
-            synchronized (ColorDatabase.class) {
+            synchronized (AppDatabase.class) {
                 if (INSTANCE == null) {
-                    INSTANCE = Room.databaseBuilder(context.getApplicationContext(),
-                                    ColorDatabase.class, "color_database")
+                    INSTANCE = Room.databaseBuilder(context.getApplicationContext(), AppDatabase.class, "app_db")
                             .fallbackToDestructiveMigration()
                             // .allowMainThreadQueries()   // exam shortcut only
                             .build();
@@ -179,59 +148,34 @@ public abstract class ColorDatabase extends RoomDatabase {
 }
 ```
 
-### Use it (off the main thread)
+### Use off the main thread
 ```java
-ColorDao dao = ColorDatabase.getInstance(this).colorDao();
+RecordDao dao = AppDatabase.getInstance(this).recordDao();
 ExecutorService io = Executors.newSingleThreadExecutor();
 Handler main = new Handler(Looper.getMainLooper());
 
 io.execute(() -> {
-    dao.insert(new ColorItem("#FF0000", "red"));
-    List<ColorItem> all = dao.getAll();
+    dao.insert(new Record("2026-11-28", 8500));
+    List<Record> all = dao.getAll();
     main.post(() -> adapter.setData(all));
 });
 ```
-Or with LiveData (simplest for lists):
-```java
-dao.getAllLive().observe(this, list -> adapter.setData(list));
-io.execute(() -> dao.insert(new ColorItem(hex, name)));   // observer refreshes automatically
-```
-⚡ **Time-saver:** `.allowMainThreadQueries()` lets you call the DAO on the UI thread. It's fine for a small exam app; add a comment saying it's for simplicity.
+Or observe LiveData: `dao.getAllLive().observe(this, list -> adapter.setData(list));`
+
+⚡ `.allowMainThreadQueries()` lets you call the DAO directly. That's OK for an exam; add a comment saying it's for simplicity.
 
 ### Room (Kotlin)
 ```kotlin
-@Entity(tableName = "colors")
-data class ColorItem(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    @ColumnInfo(name = "hex_color") val hex: String,
-    val name: String)
+@Entity(tableName = "records")
+data class Record(@PrimaryKey val date: String, val steps: Int, val mood: String, val note: String)
 
-@Dao interface ColorDao {
-    @Query("SELECT * FROM colors") fun getAll(): LiveData<List<ColorItem>>
-    @Insert suspend fun insert(c: ColorItem)
-    @Delete suspend fun delete(c: ColorItem)
+@Dao interface RecordDao {
+    @Query("SELECT * FROM records ORDER BY date DESC") suspend fun getAll(): List<Record>
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insert(r: Record)
+    @Query("DELETE FROM records") suspend fun deleteAll()
 }
-
-@Database(entities = [ColorItem::class], version = 1)
-abstract class ColorDatabase : RoomDatabase() {
-    abstract fun colorDao(): ColorDao
-    companion object {
-        @Volatile private var INSTANCE: ColorDatabase? = null
-        fun getInstance(ctx: Context): ColorDatabase =
-            INSTANCE ?: synchronized(this) {
-                INSTANCE ?: Room.databaseBuilder(ctx.applicationContext,
-                    ColorDatabase::class.java, "color_database")
-                    .fallbackToDestructiveMigration().build().also { INSTANCE = it }
-            }
-    }
-}
-// lifecycleScope.launch { dao.insert(ColorItem(hex = "#FF0000", name = "red")) }
+// lifecycleScope.launch { dao.insert(Record("2026-11-28", 8500, "Normal", "")) }
 ```
 
-## SQL CRUD reminder
-```sql
-INSERT INTO colors (hex_color, name) VALUES ('#FF0000', 'red');
-SELECT * FROM colors WHERE name LIKE '%re%' ORDER BY name ASC;
-UPDATE colors SET hex_color = '#DD0000' WHERE name = 'red';
-DELETE FROM colors WHERE name = 'red';
-```
+## Dates as `yyyy-MM-dd` strings
+They sort correctly as text, so `ORDER BY date DESC` and `BETWEEN` work. Helpers are in [T7 DateUtil](../templates/T7-wellness-tracker-past-paper.md#dateutiljava).
