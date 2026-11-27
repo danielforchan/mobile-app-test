@@ -5,7 +5,13 @@
 ![Counter screens](../images/T5-counter.svg)
 ![Counter landscape](../images/T5-counter-land.svg)
 
-**Features:** tap **+ / −** to change the count by the step value · tapping the big number adds +1 · long-press **+** adds +10 · min 0, max 99 (number turns red and a Toast appears) · Reset asks for confirmation · counts total taps and highest value · everything is saved in SharedPreferences, so it survives rotation and app restart · separate landscape layout using the same IDs.
+**Features:**
+- **+ / −** change the count by the step value. Tapping the big number adds 1. Long-pressing **+** adds 10.
+- Range is 0–99. At the limit the number turns red and a Toast appears.
+- **Reset** asks for confirmation.
+- Tracks total taps and the highest value.
+- Saved in SharedPreferences, so the count survives rotation and app restart.
+- Separate landscape layout using the same IDs.
 
 ---
 ## A. Single counter (Java)
@@ -118,7 +124,7 @@
 ```
 
 ### res/layout-land/activity_main.xml (landscape, **same IDs**)
-Number on the left half, controls on the right half.
+The number goes on the left half and the controls on the right half.
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -192,7 +198,7 @@ Number on the left half, controls on the right half.
     </LinearLayout>
 </LinearLayout>
 ```
-> Create it with: right-click `res` → **New → Android Resource Directory** → `layout-land`, then copy `activity_main.xml` into it.
+> To create it: right-click `res` → **New → Android Resource Directory** → `layout-land`, then copy `activity_main.xml` into it.
 
 ### MainActivity.java
 ```java
@@ -243,7 +249,7 @@ public class MainActivity extends AppCompatActivity {
 
         plusBtn.setOnClickListener(v -> change(+getStep()));
         minusBtn.setOnClickListener(v -> change(-getStep()));
-        countTV.setOnClickListener(v -> change(+1));            // tap the number = +1
+        countTV.setOnClickListener(v -> change(+1));                          // tap number = +1
         plusBtn.setOnLongClickListener(v -> { change(+10); return true; });  // long press = +10
 
         resetBtn.setOnClickListener(v -> new AlertDialog.Builder(this)
@@ -309,7 +315,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onPause() {          // called on rotation, Home, Back: always saves
+    protected void onPause() {          // runs on rotation, Home and Back, so it always saves
         super.onPause();
         getSharedPreferences(PREF, MODE_PRIVATE).edit()
                 .putInt("count", count)
@@ -320,7 +326,7 @@ public class MainActivity extends AppCompatActivity {
 }
 ```
 
-**If the task says "don't keep the count after the app closes, only survive rotation":** remove the prefs code and use this instead:
+**If the task says the count should survive rotation only, not closing the app:** remove the prefs code and use this instead:
 ```java
 @Override protected void onSaveInstanceState(Bundle out) {
     super.onSaveInstanceState(out);
@@ -337,13 +343,12 @@ if (savedInstanceState != null) {
 ### Quick modifications
 | Requirement | Change |
 |---|---|
-| Max/min different | edit `MIN` / `MAX` constants |
+| Different max/min | edit the `MIN` / `MAX` constants |
 | Allow negative numbers | `MIN = Integer.MIN_VALUE` (and remove the gray colour rule) |
-| Count down timer style (start at 10) | initial `count = 10`, and `+`/`−` swapped |
-| Vibrate / sound on limit | skip unless asked (needs permission) |
-| Buttons in a column | change the button row's `orientation="vertical"` and use `layout_width="match_parent"` instead of `0dp + weight` |
+| Start at 10 and count down | initial `count = 10`, and swap `+`/`−` |
+| Buttons in a column | button row `orientation="vertical"`, buttons `layout_width="match_parent"` instead of `0dp + weight` |
 | Bigger number | `android:textSize="120sp"` |
-| Number in a circle | `android:background="@drawable/circle"` (oval shape, see sheet 11) + fixed `200dp` width/height + `android:gravity="center"` |
+| Number in a circle | `android:background="@drawable/circle"` (sheet 11) + `200dp` width/height + `android:gravity="center"` |
 
 ---
 ## B. MVVM version (ViewModel + LiveData)
@@ -407,7 +412,7 @@ class MainActivity : AppCompatActivity() {
 
 ![Multi counter](../images/T5-multi-counter.svg)
 
-Each row has a name, −, count and +. The total is shown on top. Add new counters by name, long-press a row to delete it, and the list is saved as JSON in SharedPreferences.
+Each row has a name, −, the count and +, with the total shown on top. You add counters by name and long-press a row to delete it. The list is saved as JSON in SharedPreferences.
 
 ### Counter.java
 ```java
@@ -562,7 +567,7 @@ public class CounterAdapter extends RecyclerView.Adapter<CounterAdapter.VH> {
 }
 ```
 
-### MultiCounterActivity.java (set it as the launcher or open from Main)
+### MultiCounterActivity.java
 ```java
 public class MultiCounterActivity extends AppCompatActivity {
 
@@ -617,7 +622,7 @@ public class MultiCounterActivity extends AppCompatActivity {
         totalTV.setText("Total: " + sum);
     }
 
-    // ---- save / load list as JSON in SharedPreferences ----
+    // ---- save / load the list as JSON in SharedPreferences ----
     @Override
     protected void onPause() {
         super.onPause();
@@ -650,5 +655,5 @@ public class MultiCounterActivity extends AppCompatActivity {
     }
 }
 ```
-Manifest: `<activity android:name=".MultiCounterActivity" />`. To make it the start screen, move the `MAIN/LAUNCHER` `<intent-filter>` into it.
-Open it from the single counter: `startActivity(new Intent(this, MultiCounterActivity.class));`
+In the manifest, add `<activity android:name=".MultiCounterActivity" />`. To make it the start screen, move the `MAIN/LAUNCHER` `<intent-filter>` into it.
+To open it from the single counter: `startActivity(new Intent(this, MultiCounterActivity.class));`
